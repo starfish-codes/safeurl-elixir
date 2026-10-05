@@ -382,10 +382,19 @@ defmodule SafeURL do
     end
   end
 
+  # A resolver following a CNAME can hand back the target name next to the
+  # addresses, so only the addresses are kept.
   defp resolve_in_dns(hostname, dns_module) do
     case dns_module.resolve(hostname) do
-      {:ok, [_ | _] = ips} -> {:ok, Enum.map(ips, &normalize/1)}
+      {:ok, records} when is_list(records) -> only_addresses(records)
       _no_address -> {:error, :unresolved_host}
+    end
+  end
+
+  defp only_addresses(records) do
+    case Enum.filter(records, &is_tuple/1) do
+      [] -> {:error, :unresolved_host}
+      ips -> {:ok, Enum.map(ips, &normalize/1)}
     end
   end
 
