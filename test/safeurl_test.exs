@@ -11,6 +11,10 @@ defmodule SafeURLTest do
     def resolve("v6-internal.example"),
       do: {:ok, [{192, 0, 78, 24}, {0xFD00, 0, 0, 0, 0, 0, 0, 1}]}
 
+    def resolve("cname.example"),
+      do: {:ok, [~c"lb.example", {192, 0, 78, 24}, {192, 0, 78, 25}, ~c"lb.example"]}
+
+    def resolve("cname-only.example"), do: {:ok, [~c"lb.example"]}
     def resolve("empty.example"), do: {:ok, []}
     def resolve("missing.example"), do: {:error, :nxdomain}
     def resolve(_domain), do: {:ok, [{192, 0, 78, 24}]}
@@ -169,6 +173,16 @@ defmodule SafeURLTest do
     test "brackets an IPv6 address" do
       assert {:ok, %{url: "https://[2606:4700::1111]/", hostname: "v6-only.example"}} =
                SafeURL.pin("https://v6-only.example/", dns_module: TestDNSResolver)
+    end
+
+    test "pins the first address of a host behind a CNAME" do
+      assert {:ok, %{url: "https://192.0.78.24/", address: {192, 0, 78, 24}}} =
+               SafeURL.pin("https://cname.example/", dns_module: TestDNSResolver)
+    end
+
+    test "refuses a host whose CNAME resolves to no address" do
+      assert {:error, :unresolved_host} =
+               SafeURL.pin("https://cname-only.example/", dns_module: TestDNSResolver)
     end
 
     test "returns the validation error" do
